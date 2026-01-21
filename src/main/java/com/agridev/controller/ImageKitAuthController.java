@@ -15,19 +15,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 // Controller to generate ImageKit authentication parameters
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/imagekit")
 public class ImageKitAuthController {
 
     @Value("${imagekit.privateKey}")
     private String privateKey;
 
     // API to generate ImageKit token, expiry and signature
-    @GetMapping("/imagekit")
+    @GetMapping
     public ResponseEntity<Map<String, String>> getImageKitAuth() {
 
         try {
             String token = UUID.randomUUID().toString();
-            long expire = (System.currentTimeMillis() / 1000L) + 2400;
+            long expire = (System.currentTimeMillis() / 1000L) + 900;
 
             String data = token + expire;
 
