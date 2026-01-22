@@ -25,13 +25,14 @@ public class UserController {
     }
 
     // API to update user profile details
-    @PutMapping("/profile")
+    @PatchMapping("/profile")
     public ResponseEntity<UserDTO> updateProfile(
             @RequestBody UserDTO userDTO,
             HttpServletRequest request) {
 
         return ResponseEntity.ok(userService.updateProfile(userDTO, request));
     }
+
 
     // API to update user address
     @PutMapping("/address")

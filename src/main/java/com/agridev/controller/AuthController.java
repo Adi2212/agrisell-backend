@@ -2,6 +2,7 @@ package com.agridev.controller;
 
 import com.agridev.dto.LoginReq;
 import com.agridev.dto.LoginResponseDTO;
+import com.agridev.dto.RegisterResponseDTO;
 import com.agridev.dto.UserRegistetionDTO;
 import com.agridev.utils.JwtUtil;
 import org.springframework.http.HttpStatus;
@@ -25,26 +26,16 @@ public class AuthController {
     private final JwtUtil jwtUtil;
 
     // Method to register a new farmer user in the system
-    @PostMapping("/register/farmer")
-    public ResponseEntity<LoginResponseDTO> registerFarmer(
+    @PostMapping("/register")
+    public ResponseEntity<RegisterResponseDTO> registerUser(
             @RequestBody UserRegistetionDTO dto) {
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerFarmer(dto));
-    }
-
-    // Method to register a new buyer user in the system
-    @PostMapping("/register/buyer")
-    public ResponseEntity<LoginResponseDTO> registerBuyer(
-            @RequestBody UserRegistetionDTO dto) {
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerBuyer(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerUser(dto));
     }
 
     // Method to authenticate user and return login response with JWT token
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
             @RequestBody LoginReq loginReq) {
-
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.login(loginReq));
     }
 

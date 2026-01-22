@@ -34,7 +34,7 @@ public class UserService {
         return mapper.map(user, UserDTO.class);
     }
 
-    // Update logged-in user's profile details
+    // Update logged-in user's profile details (PATCH)
     public UserDTO updateProfile(UserDTO userDTO, HttpServletRequest request) {
 
         Long userId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
@@ -42,12 +42,23 @@ public class UserService {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFound("User not found"));
 
-        user.setName(userDTO.getName());
-        user.setPhone(userDTO.getPhone());
+        // Update only provided fields
+        if (userDTO.getName() != null) {
+            user.setName(userDTO.getName());
+        }
+
+        if (userDTO.getPhone() != null) {
+            user.setPhone(userDTO.getPhone());
+        }
+
+        if (userDTO.getProfileUrl() != null) {
+            user.setProfileUrl(userDTO.getProfileUrl());
+        }
 
         User savedUser = userRepo.save(user);
         return mapper.map(savedUser, UserDTO.class);
     }
+
 
     // Update or set logged-in user's address
     public UserDTO setUserAddress(AddressDTO addressDTO, HttpServletRequest request) {

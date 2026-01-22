@@ -53,13 +53,8 @@ public class ProductService {
 
 
      // Update existing product
-
-
     public ProductDTO updateProduct(Long id, AddProductDTO dto, HttpServletRequest request) {
         Product product = productRepo.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
-
-
-
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
@@ -75,7 +70,6 @@ public class ProductService {
 
 
      //  Delete product
-
     public String deleteProduct(Long id, HttpServletRequest request) {
         System.out.println("Authenticated User: ");
         String token = jwtUtil.extractToken(request);
@@ -91,7 +85,6 @@ public class ProductService {
 
 
   // Get all products
-
     public List<ProductDTO> getAllProducts() {
         return productRepo.findAll().stream().map(product -> {
             // Map basic fields
