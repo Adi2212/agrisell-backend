@@ -54,6 +54,7 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 "/categories/add",
+                                "/categories/status",
                                 "/user/get",
                                 "admin/**"
                         ).hasAnyAuthority("ROLE_ADMIN")

@@ -12,7 +12,7 @@ public class CategoryDTO {
 
     private Long id;
     private String name;
-    private String imageUrl;
+    private String imgUrl;
 
     // To avoid circular references, only pass minimal parent details
     private ParentCategoryDTO parent;

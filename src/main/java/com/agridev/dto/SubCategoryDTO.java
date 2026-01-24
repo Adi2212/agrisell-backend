@@ -11,8 +11,8 @@ public class SubCategoryDTO {
 
     private Long id;
     private String name;
-    private String imageUrl;
-
+    private String imgUrl;
+    private boolean isActive;
     // minimal parent details
     private ParentCategoryDTO parent;
 

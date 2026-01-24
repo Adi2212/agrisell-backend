@@ -31,28 +31,34 @@ public class ProductService {
     private final ModelMapper mapper;
 
     // add new product
-    public ProductDTO addProduct(AddProductDTO dto, HttpServletRequest request){
+    public ProductDTO addProduct(AddProductDTO dto, HttpServletRequest request) {
+
         String token = jwtUtil.extractToken(request);
         Long userId = jwtUtil.extractUserId(token);
 
         Category category = categoryRepo.findById(dto.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found with ID: " + dto.getCategoryId()));
+                .orElseThrow(() ->
+                        new RuntimeException("Category not found with ID: " + dto.getCategoryId())
+                );
 
+        if (!category.isActive()) {
+            throw new RuntimeException("Category is inactive. Cannot add product.");
+        }
 
-        User user = userRepo.findById(userId).orElseThrow(() -> new UserNotFound("invalid user id.."));
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new UserNotFound("Invalid user id"));
+
         Product product = mapper.map(dto, Product.class);
         product.setUser(user);
         product.setCategory(category);
 
         Product saved = productRepo.save(product);
 
-        ProductDTO response = mapper.map(saved, ProductDTO.class);
-
-        return response;  }
-
+        return mapper.map(saved, ProductDTO.class);
+    }
 
 
-     // Update existing product
+    // Update existing product
     public ProductDTO updateProduct(Long id, AddProductDTO dto, HttpServletRequest request) {
         Product product = productRepo.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
         product.setName(dto.getName());

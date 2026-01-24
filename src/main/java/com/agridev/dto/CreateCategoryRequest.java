@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 public class CreateCategoryRequest {
     private String name;
-    private String imageUrl;
+    private String imgUrl;
     private Long parentId;
 }

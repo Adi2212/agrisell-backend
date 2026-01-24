@@ -12,5 +12,5 @@ public class MainCategoryDTO {
 
     private Long id;
     private String name;
-    private String imageUrl;
+    private String imgUrl;
 }

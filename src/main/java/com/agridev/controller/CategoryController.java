@@ -5,16 +5,12 @@ import java.util.List;
 
 import com.agridev.dto.CategoryDTO;
 import com.agridev.dto.CreateCategoryRequest;
+import com.agridev.dto.SubCategoryDTO;
 import com.agridev.repository.CategoryRepository;
 import com.agridev.service.CategoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,9 +41,30 @@ public class CategoryController {
         return categoryService.addCategory(req);
     }
 
+    //Update category (Admin only)
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/update/{id}")
+    public ResponseEntity<?> updateCategory(
+            @PathVariable Long id,
+            @RequestBody CreateCategoryRequest req
+    ) {
+        return categoryService.updateCategory(id, req);
+    }
+
+    //Soft deletes category (accessible only to admin users).
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/status/{id}/{status}")
+    public ResponseEntity<?> updateCategoryStatus(
+            @PathVariable Long id,
+            @PathVariable boolean status
+    ) {
+        return categoryService.changeCategoryStatus(id, status);
+    }
+
+
     //Retrieves all categories in DTO format.
     @GetMapping("/")
-    public ResponseEntity<List<CategoryDTO>> getAllCategories() {
+    public ResponseEntity<List<SubCategoryDTO>> getAllCategories() {
         return ResponseEntity.ok(categoryService.getCategories());
     }
 

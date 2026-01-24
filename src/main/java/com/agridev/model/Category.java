@@ -2,23 +2,23 @@ package com.agridev.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 
 import java.util.List;
-
-// Category entity representing hierarchical product categories.
 
 @Entity
 @Table(name = "category")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+
 public class Category extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String name;
+
+    private boolean isActive = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
