@@ -64,8 +64,7 @@ public class ProductService {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
-        //product.setCategory(category);
-        product.setImgUrl(dto.getImageUrl());
+        product.setImgUrl(dto.getImgUrl());
         product.setStockQuantity(dto.getStockQuantity());
 
         Product updated = productRepo.save(product);
@@ -101,9 +100,6 @@ public class ProductService {
     private ProductDTO getProduct(Product product) {
         User user=userRepo.findById(product.getUser().getId()).orElseThrow();
         ProductDTO dto = mapper.map(product, ProductDTO.class);
-        dto.setUserId(user.getId());
-        dto.setAddedBy(user.getName());
-        dto.setAddedByEmail(user.getEmail());
         return dto;
     }
 

@@ -17,8 +17,5 @@ public class ProductDTO {
     private Double price;
     private int stockQuantity;
     private ParentCategoryDTO category;
-    private String imageUrl;
-    private Long userId;
-    private String addedBy;
-    private String addedByEmail;
+    private String imgUrl;
 }

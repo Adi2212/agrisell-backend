@@ -14,6 +14,6 @@ public class AddProductDTO {
     private String description;
     private Double price;
     private Long categoryId;
-    private String imageUrl;
+    private String imgUrl;
     private int stockQuantity;
 }
