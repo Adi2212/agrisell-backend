@@ -1,14 +1,13 @@
 package com.agridev.dto;
 
+import com.agridev.model.Product;
 import lombok.Data;
 
 // DTO class to send order item details in response
 @Data
 public class OrderItemResponse {
 
-    private Long productId;
-
-    private String productName;
+    private ProductItem product;
 
     private int quantity;
 

@@ -37,17 +37,21 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(
-                                "/products",
-                                "/products/{id}",
+                                "/products/get/**",
                                 "/orders/create"
                         ).permitAll()
 
                         .requestMatchers("/categories/**").permitAll()
 
+                        .requestMatchers(
+                                "/orders"
+                        ).permitAll()
+
                         .requestMatchers("/payments/checkout").permitAll()
 
                         .requestMatchers(
                                 "/products/add",
+                                "/products/farmer",
                                 "/products/update/**",
                                 "/products/delete/**"
                         ).hasAnyAuthority("ROLE_FARMER", "ROLE_ADMIN")

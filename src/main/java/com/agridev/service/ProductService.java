@@ -57,7 +57,6 @@ public class ProductService {
         return mapper.map(saved, ProductDTO.class);
     }
 
-
     // Update existing product
     public ProductDTO updateProduct(Long id, AddProductDTO dto, HttpServletRequest request) {
         Product product = productRepo.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
@@ -97,16 +96,24 @@ public class ProductService {
         }).collect(Collectors.toList());
     }
 
-    private ProductDTO getProduct(Product product) {
-        User user=userRepo.findById(product.getUser().getId()).orElseThrow();
-        ProductDTO dto = mapper.map(product, ProductDTO.class);
-        return dto;
-    }
+
 
     //  Get product by ID
     public ProductDTO getProductById(Long id) {
         Product product = productRepo.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
         return getProduct(product);
+    }
+
+    // Get all products under category
+    public List<ProductDTO> getProductsByCategory(Long categoryId) {
+
+        Category category = categoryRepo.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        return productRepo.findByCategory(category)
+                .stream()
+                .map(product -> mapper.map(product, ProductDTO.class))
+                .toList();
     }
 
     public List<ProductDTO> getProductsByUserId( HttpServletRequest request) {
@@ -118,6 +125,12 @@ public class ProductService {
             return getProduct(product);
         }).collect(Collectors.toList());
         return  productDTOS;
+    }
+
+    private ProductDTO getProduct(Product product) {
+        User user=userRepo.findById(product.getUser().getId()).orElseThrow();
+        ProductDTO dto = mapper.map(product, ProductDTO.class);
+        return dto;
     }
 
 }

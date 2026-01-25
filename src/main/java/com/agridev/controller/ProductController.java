@@ -19,17 +19,26 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @GetMapping
+    @GetMapping("/get")
     public ResponseEntity<List<ProductDTO>> getAll(){
 
         return ResponseEntity.ok(productService.getAllProducts());
 
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/get/{id}")
     public ResponseEntity<ProductDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
+
+    // Get products by Category ID
+    @GetMapping("/get/category/{categoryId}")
+    public ResponseEntity<List<ProductDTO>> getByCategory(
+            @PathVariable Long categoryId
+    ) {
+        return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
+    }
+
     @PreAuthorize("hasAnyAuthority('ROLE_FARMER','ROLE_ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<ProductDTO> add(@RequestBody AddProductDTO dto, HttpServletRequest request) {

@@ -2,6 +2,7 @@ package com.agridev.service;
 
 import com.agridev.dto.OrderItemRequest;
 import com.agridev.dto.StripeResponse;
+import com.agridev.model.Order;
 import com.agridev.model.Payment;
 import com.agridev.model.PaymentStatus;
 import com.agridev.model.Product;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 // Service class to handle Stripe payment checkout
 @Service
@@ -103,6 +105,58 @@ public class PaymentService {
                     .status("FAILED")
                     .message(e.getMessage())
                     .build();
+        }
+    }
+
+    // Retry Payment Logic
+    public Map<String, String> retryPayment(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        // Allow retry only if payment failed
+        if (order.getPaymentStatus() != PaymentStatus.FAILED) {
+            throw new RuntimeException("Payment retry not allowed");
+        }
+
+        try {
+            Stripe.apiKey = stripeSecretKey;
+
+            // Create Stripe Checkout Session
+            Session session = Session.create(
+                    SessionCreateParams.builder()
+                            .setMode(SessionCreateParams.Mode.PAYMENT)
+                            .setSuccessUrl(
+                                    "http://localhost:5173/payment/success?orderId=" + orderId
+                            )
+                            .setCancelUrl(
+                                    "http://localhost:5173/payment/cancel?orderId=" + orderId
+                            )
+
+                            .addLineItem(
+                                    SessionCreateParams.LineItem.builder()
+                                            .setQuantity(1L)
+                                            .setPriceData(
+                                                    SessionCreateParams.LineItem.PriceData.builder()
+                                                            .setCurrency("inr")
+                                                            .setUnitAmount(Math.round(order.getTotalAmount() * 100)) // Stripe uses paise
+                                                            .setProductData(
+                                                                    SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                                                            .setName("Order #" + order.getId())
+                                                                            .build()
+                                                            )
+                                                            .build()
+                                            )
+                                            .build()
+                            )
+                            .build()
+            );
+
+            // Return URL to frontend
+            return Map.of("sessionUrl", session.getUrl());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Stripe retry payment failed: " + e.getMessage());
         }
     }
 }

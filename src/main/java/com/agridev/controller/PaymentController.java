@@ -30,4 +30,10 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    // Retry Payment API
+    @PostMapping("/retry/{orderId}")
+    public ResponseEntity<?> retryPayment(@PathVariable Long orderId) {
+        return ResponseEntity.ok(paymentService.retryPayment(orderId));
+    }
+
 }

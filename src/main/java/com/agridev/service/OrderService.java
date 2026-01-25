@@ -66,7 +66,7 @@ public class OrderService {
 
             product.setStockQuantity(product.getStockQuantity() - i.getQuantity());
             OrderItem item = new OrderItem();
-            item.setProductId(product.getId());
+           item.setProduct(product);
             item.setQuantity(i.getQuantity());
             item.setPrice(product.getPrice());
             item.setOrder(order);
@@ -100,6 +100,38 @@ public class OrderService {
         return buildOrderResponse(savedOrder);
     }
 
+    // Cancel Order Logic
+    public String cancelOrder(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        // Restrict cancellation after shipping
+        if (order.getStatus() == Status.SHIPPED ||
+                order.getStatus() == Status.DELIVERED) {
+
+            throw new RuntimeException("Order cannot be cancelled after shipping");
+        }
+
+        // If already cancelled
+        if (order.getStatus() == Status.CANCELLED) {
+            return "Order is already cancelled";
+        }
+
+        // Cancel the order
+        order.setStatus(Status.CANCELLED);
+        order.getItems().forEach(item -> {
+            Product product = productRepository.findById(item.getProduct().getId())
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+            product.setStockQuantity(
+                    product.getStockQuantity() + item.getQuantity()
+            );
+        });
+
+        orderRepository.save(order);
+
+        return "Order Cancelled Successfully";
+    }
 
     // Method to mark payment as failed
     public OrderResponse markPaymentFailed(Long orderId) {
@@ -163,6 +195,29 @@ public class OrderService {
                 .toList();
     }
 
+    // Get Orders for Farmer
+    public List<OrderResponse> getOrdersForFarmer(HttpServletRequest request) {
+
+        String token = jwtUtil.extractToken(request);
+        Long farmerId = jwtUtil.extractUserId(token);
+
+        List<Order> orders = orderRepository.findOrdersByFarmerId(farmerId);
+
+        return orders.stream().map(order -> {
+
+
+            List<OrderItem> farmerItems = order.getItems().stream()
+                    .filter(i -> i.getProduct().getUser().getId().equals(farmerId))
+                    .toList();
+
+            order.setItems(farmerItems);
+
+            return buildOrderResponse(order);
+
+        }).toList();
+    }
+
+
     // Method to fetch single order details
     public OrderResponse getOrder(Long id) {
 
@@ -182,7 +237,6 @@ public class OrderService {
         historyRepository.save(h);
     }
 
-    // Helper method to build order response DTO
     private OrderResponse buildOrderResponse(Order order) {
 
         OrderResponse r = new OrderResponse();
@@ -193,25 +247,31 @@ public class OrderService {
         r.setPaymentStatus(order.getPaymentStatus());
         r.setCreatedAt(order.getCreatedAt());
 
+        // Address Mapping
         r.setDeliveryAddress(
                 modelMapper.map(order.getDeliveryAddress(), AddressResponse.class)
         );
 
+        // Items Mapping
         r.setItems(
                 order.getItems().stream().map(item -> {
 
                     OrderItemResponse ir = new OrderItemResponse();
 
-                    ir.setProductId(item.getProductId());
+                    // Build ProductItem DTO
+                    ProductItem p = new ProductItem();
+                    p.setProductId(item.getProduct().getId());
+                    p.setProductName(item.getProduct().getName());
+
+                    // Set product DTO
+                    ir.setProduct(p);
+
+                    // Set quantity & price
                     ir.setQuantity(item.getQuantity());
                     ir.setPrice(item.getPrice());
-                    ir.setLineTotal(item.getPrice() * item.getQuantity());
 
-                    ir.setProductName(
-                            productRepository.findById(item.getProductId())
-                                    .map(Product::getName)
-                                    .orElse("Product")
-                    );
+                    // Calculate line total
+                    ir.setLineTotal(item.getPrice() * item.getQuantity());
 
                     return ir;
 
@@ -220,4 +280,5 @@ public class OrderService {
 
         return r;
     }
+
 }

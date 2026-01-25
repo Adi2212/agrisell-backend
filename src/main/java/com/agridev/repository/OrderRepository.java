@@ -31,5 +31,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """, nativeQuery = true)
     List<Object[]> countByDateAndStatus(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    // Farmer Orders: Orders containing farmer’s products
+    @Query("""
+    SELECT DISTINCT o
+    FROM Order o
+    JOIN o.items i
+    WHERE i.product.user.id = :farmerId
+""")
+    List<Order> findOrdersByFarmerId(@Param("farmerId") Long farmerId);
+
+
+
+
 
 }

@@ -30,6 +30,12 @@ public class OrderController {
         return ResponseEntity.ok(orderService.placeOrder(dto, request));
     }
 
+    // Cancel Order API
+    @PutMapping("/cancel/{orderId}")
+    public ResponseEntity<?> cancelOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.cancelOrder(orderId));
+    }
+
     // API to update order status by admin or seller
     @PutMapping("/{id}/status")
     public ResponseEntity<OrderResponse> updateOrderStatus(
@@ -44,6 +50,13 @@ public class OrderController {
     public ResponseEntity<List<OrderResponse>> userOrders(HttpServletRequest request) {
 
         return ResponseEntity.ok(orderService.getUserOrders(request));
+    }
+
+    // Farmer Orders API
+    @GetMapping("/farmer")
+    public ResponseEntity<?> getFarmerOrders(HttpServletRequest request) {
+
+        return ResponseEntity.ok(orderService.getOrdersForFarmer(request));
     }
 
     // API to get single order details by id
