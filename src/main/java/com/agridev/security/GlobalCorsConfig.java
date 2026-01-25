@@ -20,8 +20,7 @@ public class GlobalCorsConfig {
 
                 registry.addMapping("/**")
                         .allowedOrigins(
-                                "http://localhost:5173",
-                                "https://agrisell-frontend.vercel.app"
+                                "http://localhost:5173"
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
