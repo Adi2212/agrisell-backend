@@ -1,6 +1,7 @@
 package com.agridev.repository;
 
 import com.agridev.model.Order;
+import com.agridev.model.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,7 +41,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 """)
     List<Order> findOrdersByFarmerId(@Param("farmerId") Long farmerId);
 
+    long countByStatus(Status status);
 
+    @Query("SELECT COALESCE(SUM(o.totalAmount),0) FROM Order o WHERE o.paymentStatus='PAID'")
+    double totalRevenue();
+
+    @Query("""
+    SELECT COUNT(o)
+    FROM Order o
+    JOIN o.items i
+    WHERE i.product.user.id = :farmerId
+    AND o.status = :status
+""")
+    long countOrdersByFarmerAndStatus(Long farmerId, Status status);
 
 
 

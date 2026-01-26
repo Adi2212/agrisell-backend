@@ -58,7 +58,7 @@ public class PaymentService {
 
             for (OrderItemRequest item : items) {
 
-                Product product = productRepository.findById(item.getProductId())
+                Product product = productRepository.findById(item.getProduct().getProductId())
                         .orElseThrow(() -> new RuntimeException("Product not found"));
 
                 SessionCreateParams.LineItem.PriceData.ProductData productData =

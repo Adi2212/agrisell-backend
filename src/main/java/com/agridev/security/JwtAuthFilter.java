@@ -1,77 +1,81 @@
 package com.agridev.security;
 
-import java.io.IOException;
-import java.util.Collections;
-
 import com.agridev.utils.JwtUtil;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-// Filter class to validate JWT token for every request
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final CustomUserDetailsService userDetailsService;
 
-    // Method to intercept request and validate JWT token
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
+        // Extract Authorization header
+        String authHeader = request.getHeader("Authorization");
 
-        if (path.startsWith("/auth") || path.startsWith("/actuator") || path.startsWith("/categories/main") || path.startsWith("/categories/sub") || (path.startsWith("/products/get") && request.getMethod().equals("GET")) ) {
+        // If no JWT token present, continue request normally
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"JWT token missing\"}");
-            return;
-        }
-
+        // Extract token
         String token = authHeader.substring(7);
 
+        // Validate token
         if (!jwtUtil.isTokenValid(token)) {
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
+            filterChain.doFilter(request, response);
             return;
         }
 
-        String username = jwtUtil.extractUsername(token);
-        String role = jwtUtil.extractRole(token);
+        // Extract username(email) from token
+        String email = jwtUtil.extractUsername(token);
 
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        username,
-                        null,
-                        Collections.singletonList(
-                                new SimpleGrantedAuthority("ROLE_" + role)
-                        )
-                );
+        // If authentication is not set already
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+            // Load full user details from database
+            UserDetails userDetails =
+                    userDetailsService.loadUserByUsername(email);
 
+            // Create Authentication object
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+
+            // Attach request details
+            authentication.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+            );
+
+            // Set authentication in security context
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+
+        // Continue request
         filterChain.doFilter(request, response);
     }
-
 }

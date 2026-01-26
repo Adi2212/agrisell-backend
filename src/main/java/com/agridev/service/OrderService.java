@@ -54,7 +54,7 @@ public class OrderService {
 
         List<OrderItem> items = dto.getItems().stream().map(i -> {
 
-            Product product = productRepository.findById(i.getProductId())
+            Product product = productRepository.findById(i.getProduct().getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
             // Quantity validation before order placement
@@ -236,6 +236,72 @@ public class OrderService {
 
         historyRepository.save(h);
     }
+
+    //Order stats for graph
+    public List<OrderStatusStatsResponse> getOrderStatusStats(Long days) {
+
+        LocalDateTime start = LocalDate.now()
+                .minusDays(days)
+                .atStartOfDay();
+
+        LocalDateTime end = LocalDate.now()
+                .atTime(LocalTime.MAX);
+
+        List<Object[]> rows = orderRepository.countByDateAndStatus(start, end);
+
+        // Initialize map with all dates and all statuses
+        Map<LocalDate, Map<String, Long>> map = new LinkedHashMap<>();
+
+        LocalDate d = LocalDate.now().minusDays(days);
+        while (!d.isAfter(LocalDate.now())) {
+            Map<String, Long> inner = new HashMap<>();
+            inner.put("PENDING", 0L);
+            inner.put("CONFIRMED", 0L);
+            inner.put("SHIPPED", 0L);
+            inner.put("DELIVERED", 0L);
+            inner.put("CANCELLED", 0L);
+            map.put(d, inner);
+            d = d.plusDays(1);
+        }
+
+        // Fill data from DB
+        for (Object[] row : rows) {
+
+            LocalDate rowDate;
+            if (row[0] instanceof java.sql.Date sqlDate) {
+                rowDate = sqlDate.toLocalDate();
+            } else {
+                rowDate = LocalDate.parse(row[0].toString());
+            }
+
+            String status = row[1].toString();
+
+            Long count = (row[2] instanceof BigInteger bi)
+                    ? bi.longValue()
+                    : Long.parseLong(row[2].toString());
+
+            map.get(rowDate).put(status, count);
+        }
+
+        // Build response
+        List<OrderStatusStatsResponse> response = new ArrayList<>();
+
+        for (Map.Entry<LocalDate, Map<String, Long>> entry : map.entrySet()) {
+            Map<String, Long> c = entry.getValue();
+
+            response.add(new OrderStatusStatsResponse(
+                    entry.getKey().toString(),
+                    c.get("PENDING"),
+                    c.get("CONFIRMED"),
+                    c.get("SHIPPED"),
+                    c.get("DELIVERED"),
+                    c.get("CANCELLED")
+            ));
+        }
+
+        return response;
+    }
+
 
     private OrderResponse buildOrderResponse(Order order) {
 

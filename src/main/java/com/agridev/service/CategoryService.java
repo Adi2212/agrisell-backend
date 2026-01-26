@@ -120,6 +120,16 @@ public class CategoryService {
         Category category = categoryRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
+        if (status && category.getParent() != null) {
+
+            Category parent = category.getParent();
+
+            if (!parent.isActive()) {
+                return ResponseEntity.badRequest()
+                        .body("Cannot activate this category because parent category is inactive.");
+            }
+        }
+
         category.setActive(status);
 
         if (!status) {
@@ -135,5 +145,6 @@ public class CategoryService {
 
         return ResponseEntity.ok(msg);
     }
+
 
 }

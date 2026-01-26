@@ -22,6 +22,7 @@ public class PaymentController {
     public ResponseEntity<StripeResponse> checkout(
             @RequestBody PaymentRequest request) {
 
+        System.out.println(request.getOrderId());
         StripeResponse response = paymentService.checkout(
                 request.getOrderId(),
                 request.getItems()

@@ -1,9 +1,6 @@
 package com.agridev.controller;
 
-import com.agridev.dto.LoginReq;
-import com.agridev.dto.LoginResponseDTO;
-import com.agridev.dto.RegisterResponseDTO;
-import com.agridev.dto.UserRegistetionDTO;
+import com.agridev.dto.*;
 import com.agridev.utils.JwtUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +34,29 @@ public class AuthController {
     public ResponseEntity<LoginResponseDTO> login(
             @RequestBody LoginReq loginReq) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.login(loginReq));
+    }
+
+    // Forgot Password API
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(
+            @RequestBody ForgotPasswordRequestDTO request) {
+
+        return ResponseEntity.ok(
+                authService.forgotPassword(request.getEmail())
+        );
+    }
+
+    // Reset Password API
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(
+            @RequestBody ResetPasswordRequestDTO request) {
+
+        return ResponseEntity.ok(
+                authService.resetPassword(
+                        request.getToken(),
+                        request.getNewPassword()
+                )
+        );
     }
 
 }

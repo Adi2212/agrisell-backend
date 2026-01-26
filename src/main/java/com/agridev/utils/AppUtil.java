@@ -11,9 +11,14 @@ import com.agridev.model.Role;
 import com.agridev.model.User;
 import com.agridev.repository.UserRepository;
 
+import java.util.Random;
+
 // Utility configuration class for application level beans
 @Configuration
 public class AppUtil {
+
+
+
 
     // Bean for password encoding
     @Bean

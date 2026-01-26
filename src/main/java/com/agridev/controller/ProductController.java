@@ -1,6 +1,7 @@
 package com.agridev.controller;
 
 import com.agridev.dto.AddProductDTO;
+import com.agridev.dto.FarmerStatsResponse;
 import com.agridev.dto.ProductDTO;
 import com.agridev.service.ProductService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,6 +68,13 @@ public class ProductController {
     @GetMapping("/farmer")
     public ResponseEntity<List<ProductDTO>> getFarmer( HttpServletRequest request) {
         return ResponseEntity.ok(productService.getProductsByUserId(request));
+    }
+
+    //State for the farmer
+    @PreAuthorize("hasAnyAuthority('ROLE_FARMER')")
+    @GetMapping("/stats")
+    public FarmerStatsResponse getStats(HttpServletRequest request) {
+        return productService.getFarmerStats(request);
     }
 
 }
