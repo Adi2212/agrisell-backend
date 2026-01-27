@@ -1,12 +1,14 @@
 package com.agridev.security;
 
 import com.agridev.utils.JwtUtil;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +21,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -30,11 +33,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String requestUri = request.getRequestURI();
+        log.debug("JWT Filter triggered for request: {}", requestUri);
+
         // Extract Authorization header
         String authHeader = request.getHeader("Authorization");
 
-        // If no JWT token present, continue request normally
+        // If no token present, continue request
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+
+            log.debug("No Authorization header found for request: {}", requestUri);
+
             filterChain.doFilter(request, response);
             return;
         }
@@ -44,17 +53,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Validate token
         if (!jwtUtil.isTokenValid(token)) {
+
+            log.warn("Invalid JWT token received for request: {}", requestUri);
+
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract username(email) from token
+        // Extract email from token
         String email = jwtUtil.extractUsername(token);
 
-        // If authentication is not set already
+        // Authenticate only if not already authenticated
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            // Load full user details from database
+            log.info("Authenticating user with email: {}", email);
+
+            // Load user details from DB
             UserDetails userDetails =
                     userDetailsService.loadUserByUsername(email);
 
@@ -71,8 +85,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     new WebAuthenticationDetailsSource().buildDetails(request)
             );
 
-            // Set authentication in security context
+            // Set Authentication in Security Context
             SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            log.info("User authenticated successfully: {}", email);
+
+        } else {
+
+            log.debug("Authentication already exists or email is null for request: {}", requestUri);
         }
 
         // Continue request

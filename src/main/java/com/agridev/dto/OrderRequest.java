@@ -1,5 +1,9 @@
 package com.agridev.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+
 import lombok.Data;
 
 import java.util.List;
@@ -8,8 +12,10 @@ import java.util.List;
 @Data
 public class OrderRequest {
 
+    @NotBlank(message = "Payment method is required")
     private String paymentMethod;
 
+    @NotEmpty(message = "Order items cannot be empty")
+    @Valid
     private List<OrderItemRequest> items;
-
 }
