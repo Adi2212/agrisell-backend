@@ -56,5 +56,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countOrdersByFarmerAndStatus(Long farmerId, Status status);
 
 
+    @Query("""
+SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END
+FROM Order o
+JOIN o.items i
+WHERE o.userId = :buyerId
+AND i.product.id = :productId
+AND o.status = 'DELIVERED'
+""")
+    boolean hasDeliveredOrder(Long buyerId, Long productId);
+
+
 
 }
