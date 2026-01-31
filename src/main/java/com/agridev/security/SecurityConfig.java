@@ -54,7 +54,8 @@ public class SecurityConfig {
                                 "/auth/forgot-password",
                                 "/auth/reset-password",
                                 "/actuator/**",
-                                "/imagekit/auth"
+                                "/imagekit/auth",
+                                "/reviews/**"
                         ).permitAll()
 
                         //Swagger Api
