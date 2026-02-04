@@ -21,4 +21,5 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
         @SecurityRequirement(name = "bearerAuth")})
 @Configuration
 public class SwaggerConfig {
+
 }

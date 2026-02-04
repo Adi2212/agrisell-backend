@@ -39,6 +39,9 @@ public class PaymentService {
     @Value("${stripe.secret.key}")
     private String stripeSecretKey;
 
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     // Initialize Stripe secret key
     @PostConstruct
     public void init() {
@@ -58,10 +61,10 @@ public class PaymentService {
                     SessionCreateParams.builder()
                             .setMode(SessionCreateParams.Mode.PAYMENT)
                             .setSuccessUrl(
-                                    "http://localhost:5173/payment/success?orderId=" + orderId
+                                    frontendUrl+"payment/success?orderId=" + orderId
                             )
                             .setCancelUrl(
-                                    "http://localhost:5173/payment/cancel?orderId=" + orderId
+                                    frontendUrl+"payment/cancel?orderId=" + orderId
                             );
 
             for (OrderItemRequest item : items) {
@@ -163,10 +166,10 @@ public class PaymentService {
                     SessionCreateParams.builder()
                             .setMode(SessionCreateParams.Mode.PAYMENT)
                             .setSuccessUrl(
-                                    "http://localhost:5173/payment/success?orderId=" + orderId
+                                   frontendUrl+"payment/success?orderId=" + orderId
                             )
                             .setCancelUrl(
-                                    "http://localhost:5173/payment/cancel?orderId=" + orderId
+                                    frontendUrl+"payment/cancel?orderId=" + orderId
                             )
                             .addLineItem(
                                     SessionCreateParams.LineItem.builder()
