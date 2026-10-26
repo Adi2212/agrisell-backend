@@ -58,16 +58,17 @@ public class SecurityConfig {
                                 "/reviews/**"
                         ).permitAll()
 
-                        //Swagger Api
+                        // Swagger Api
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
 
-                        // Public Product Browsing
+                        // Public Product Browsing and Offers
                         .requestMatchers(
                                 "/products/get/**",
-                                "/categories/**"
+                                "/categories/**",
+                                "/offers/**"
                         ).permitAll()
 
                         // Orders and Payment Public Access (if needed)

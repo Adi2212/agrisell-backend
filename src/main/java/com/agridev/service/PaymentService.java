@@ -60,6 +60,8 @@ public class PaymentService {
             SessionCreateParams.Builder params =
                     SessionCreateParams.builder()
                             .setMode(SessionCreateParams.Mode.PAYMENT)
+                            .putExtraParam("payment_method_types[0]", "card")
+                            .putExtraParam("payment_method_types[1]", "upi")
                             .setSuccessUrl(
                                     frontendUrl+"payment/success?orderId=" + orderId
                             )
@@ -165,6 +167,8 @@ public class PaymentService {
             Session session = Session.create(
                     SessionCreateParams.builder()
                             .setMode(SessionCreateParams.Mode.PAYMENT)
+                            .putExtraParam("payment_method_types[0]", "card")
+                            .putExtraParam("payment_method_types[1]", "upi")
                             .setSuccessUrl(
                                    frontendUrl+"payment/success?orderId=" + orderId
                             )
@@ -192,6 +196,14 @@ public class PaymentService {
 
             log.info("Stripe retry session created successfully for orderId: {}", orderId);
 
+            // Update TransactionId in Payment table for the new session
+            Payment payment = paymentRepository.findByOrderId(orderId);
+            if(payment != null) {
+                payment.setTransactionId(session.getId());
+                paymentRepository.save(payment);
+                log.info("Updated Payment table with new Stripe retry sessionId: {} for orderId {}", session.getId(), orderId);
+            }
+
             return Map.of("sessionUrl", session.getUrl());
 
         } catch (Exception e) {
@@ -200,6 +212,27 @@ public class PaymentService {
                     orderId, e.getMessage());
 
             throw new RuntimeException("Stripe retry payment failed: " + e.getMessage());
+        }
+    }
+
+    // Verify Stripe session
+    public boolean verifyPayment(Long orderId) {
+        log.info("Verifying Stripe payment for orderId: {}", orderId);
+        try {
+            Payment payment = paymentRepository.findByOrderId(orderId);
+            if (payment == null || payment.getTransactionId() == null) {
+                log.warn("Payment entry or Transaction ID missing for orderId: {}", orderId);
+                return false;
+            }
+            Stripe.apiKey = stripeSecretKey;
+            Session session = Session.retrieve(payment.getTransactionId());
+            
+            boolean isPaid = "paid".equalsIgnoreCase(session.getPaymentStatus());
+            log.info("Stripe verification for orderId: {}. Payment status isPaid: {}", orderId, isPaid);
+            return isPaid;
+        } catch (Exception e) {
+            log.error("Failed to verify Stripe session for orderId: {}", orderId, e);
+            return false;
         }
     }
 }

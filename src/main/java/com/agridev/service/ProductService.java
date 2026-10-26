@@ -2,9 +2,12 @@ package com.agridev.service;
 
 import com.agridev.dto.AddProductDTO;
 import com.agridev.dto.FarmerStatsResponse;
+import com.agridev.dto.OfferSummaryDTO;
+import com.agridev.dto.ParentCategoryDTO;
 import com.agridev.dto.ProductDTO;
 import com.agridev.exception.UserNotFound;
 import com.agridev.model.Category;
+import com.agridev.model.Offer;
 import com.agridev.model.Product;
 import com.agridev.model.Status;
 import com.agridev.model.User;
@@ -54,11 +57,6 @@ public class ProductService {
                     );
                 });
 
-        if (!category.isActive()) {
-            log.warn("Cannot add product. Category is inactive: {}", dto.getCategoryId());
-            throw new RuntimeException("Category is inactive. Cannot add product.");
-        }
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("User not found with id: {}", userId);
@@ -73,7 +71,7 @@ public class ProductService {
 
         log.info("Product added successfully with productId: {}", saved.getId());
 
-        return mapper.map(saved, ProductDTO.class);
+        return getProduct(saved);
     }
 
     // Update existing product
@@ -98,7 +96,7 @@ public class ProductService {
 
         log.info("Product updated successfully with productId: {}", updated.getId());
 
-        return mapper.map(updated, ProductDTO.class);
+        return getProduct(updated);
     }
 
     // Delete product
@@ -113,17 +111,11 @@ public class ProductService {
                     return new RuntimeException("Product not found");
                 });
 
-        if (product.getUser().getId().equals(userId)) {
+        productRepository.delete(product);
 
-            productRepository.delete(product);
+        log.info("Product deleted successfully with productId: {}", id);
 
-            log.info("Product deleted successfully with productId: {}", id);
-            return "Product deleted successfully";
-        }
-
-        log.warn("Unauthorized delete attempt. userId: {}, productId: {}", userId, id);
-
-        throw new RuntimeException("Product not found in current user");
+        return "Product deleted successfully";
     }
 
     // Get all products
@@ -131,7 +123,9 @@ public class ProductService {
 
         log.info("Fetching all products");
 
-        return productRepository.findAll()
+        List<Product> products = productRepository.findAll();
+
+        return products
                 .stream()
                 .map(this::getProduct)
                 .collect(Collectors.toList());
@@ -164,35 +158,38 @@ public class ProductService {
 
         return productRepository.findByCategory(category)
                 .stream()
-                .map(product -> mapper.map(product, ProductDTO.class))
-                .toList();
-    }
-
-    // Get products for logged-in farmer/user
-    public List<ProductDTO> getProductsByUserId(HttpServletRequest request) {
-
-        Long userId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
-
-        log.info("Fetching products for userId: {}", userId);
-
-        List<Product> products = productRepository.findByUserId(userId);
-
-        return products.stream()
                 .map(this::getProduct)
                 .collect(Collectors.toList());
     }
 
-    // Farmer dashboard statistics
+    // Get products of logged-in farmer
+    public List<ProductDTO> getProductsByFarmer(HttpServletRequest request) {
+
+        Long farmerId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
+
+        log.info("Fetching products for farmerId: {}", farmerId);
+
+        return productRepository.findByUserId(farmerId)
+                .stream()
+                .map(this::getProduct)
+                .collect(Collectors.toList());
+    }
+
+    // Get products of logged-in user / farmer (controller alias)
+    public List<ProductDTO> getProductsByUserId(HttpServletRequest request) {
+        return getProductsByFarmer(request);
+    }
+
+    // Fetch farmer stats (total products, orders)
     public FarmerStatsResponse getFarmerStats(HttpServletRequest request) {
 
         Long farmerId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
 
-        log.info("Fetching farmer stats for farmerId: {}", farmerId);
+        log.info("Calculating stats for farmerId: {}", farmerId);
 
-        long totalProducts = productRepository.countByUserId(farmerId);
-
+        int totalProducts = productRepository.countByUserId(farmerId);
         long pendingOrders =
-                orderRepository.countOrdersByFarmerAndStatus(farmerId, Status.CONFIRMED);
+                orderRepository.countOrdersByFarmerAndStatus(farmerId, Status.PENDING);
 
         long completedOrders =
                 orderRepository.countOrdersByFarmerAndStatus(farmerId, Status.DELIVERED);
@@ -202,10 +199,44 @@ public class ProductService {
         return new FarmerStatsResponse(totalProducts, pendingOrders, completedOrders);
     }
 
-    // Helper method to map Product entity
+    // Helper method to map Product entity to ProductDTO with offer, category hierarchy, and discount details
     private ProductDTO getProduct(Product product) {
 
         ProductDTO dto = mapper.map(product, ProductDTO.class);
+
+        // Populate Category and Parent Category for precise category-based filtering and offers
+        if (product.getCategory() != null) {
+            Category cat = product.getCategory();
+            ParentCategoryDTO directCat = new ParentCategoryDTO(cat.getId(), cat.getName());
+            dto.setCategory(directCat);
+
+            if (cat.getParent() != null) {
+                Category parentCat = cat.getParent();
+                dto.setParentCategory(new ParentCategoryDTO(parentCat.getId(), parentCat.getName()));
+            } else {
+                dto.setParentCategory(directCat);
+            }
+        }
+
+        if (product.getOffer() != null && product.getOffer().isActive()) {
+            Offer offer = product.getOffer();
+            OfferSummaryDTO offerDTO = OfferSummaryDTO.builder()
+                    .id(offer.getId())
+                    .title(offer.getTitle())
+                    .description(offer.getDescription())
+                    .discountPercentage(offer.getDiscountPercentage())
+                    .bannerUrl(offer.getBannerUrl())
+                    .build();
+
+            dto.setOffer(offerDTO);
+
+            double discount = offer.getDiscountPercentage() != null ? offer.getDiscountPercentage() : 0.0;
+            double discounted = Math.round((product.getPrice() * (1.0 - (discount / 100.0))) * 100.0) / 100.0;
+            dto.setDiscountedPrice(discounted);
+        } else {
+            dto.setDiscountedPrice(product.getPrice());
+        }
+
         return dto;
     }
 }

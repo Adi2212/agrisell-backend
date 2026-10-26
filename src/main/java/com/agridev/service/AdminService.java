@@ -1,5 +1,8 @@
 package com.agridev.service;
 
+import java.util.List;
+import java.util.ArrayList;
+
 import com.agridev.dto.*;
 import com.agridev.model.*;
 import com.agridev.repository.*;
@@ -106,7 +109,7 @@ public class AdminService {
         userRepository.save(buyer);
     }
 
-    // Fetch paginated products list
+    // Fetch paginated products list with Offer info
     public Page<ProductAdminResponse> getProducts(Pageable pageable) {
 
         log.info("Fetching product list with pagination");
@@ -116,9 +119,20 @@ public class AdminService {
                     ProductAdminResponse res = new ProductAdminResponse();
                     res.setId(product.getId());
                     res.setName(product.getName());
-                    res.setFarmerName(product.getUser().getName());
+                    res.setFarmerName(product.getUser() != null ? product.getUser().getName() : "Unknown");
                     res.setPrice(product.getPrice());
                     res.setStock(product.getStockQuantity());
+
+                    if (product.getOffer() != null && product.getOffer().isActive()) {
+                        res.setOfferTitle(product.getOffer().getTitle());
+                        res.setDiscountPercentage(product.getOffer().getDiscountPercentage());
+                        double discount = product.getOffer().getDiscountPercentage() != null ? product.getOffer().getDiscountPercentage() : 0.0;
+                        double discounted = Math.round((product.getPrice() * (1.0 - (discount / 100.0))) * 100.0) / 100.0;
+                        res.setDiscountedPrice(discounted);
+                    } else {
+                        res.setDiscountedPrice(product.getPrice());
+                    }
+
                     return res;
                 });
     }
@@ -164,8 +178,8 @@ public class AdminService {
                     OrderAdminResponse res = new OrderAdminResponse();
                     res.setId(order.getId());
                     res.setTotalAmount(order.getTotalAmount());
-                    res.setStatus(order.getStatus().name());
-                    res.setCreatedAt(order.getCreatedAt().toString());
+                    res.setStatus(order.getStatus() != null ? order.getStatus().name() : "PENDING");
+                    res.setCreatedAt(order.getCreatedAt());
 
                     res.setBuyerName(
                             userRepository.findById(order.getUserId())
@@ -191,6 +205,8 @@ public class AdminService {
         OrderDetailsAdminResponse res =
                 modelMapper.map(order, OrderDetailsAdminResponse.class);
 
+        res.setStatus(order.getStatus() != null ? order.getStatus().name() : "PENDING");
+
         res.setBuyerName(
                 userRepository.findById(order.getUserId())
                         .map(User::getName)
@@ -211,11 +227,24 @@ public class AdminService {
                         .toList()
         );
 
-        res.setHistory(
-                order.getHistory().stream()
-                        .map(h -> modelMapper.map(h, OrderStatusHistoryResponse.class))
-                        .toList()
-        );
+        // Explicitly map history to guarantee timestamps are preserved and eliminate consecutive duplicate statuses
+        if (order.getHistory() != null) {
+            List<OrderStatusHistoryResponse> cleanHistory = new ArrayList<>();
+            String lastStatus = null;
+            for (OrderStatusHistory h : order.getHistory()) {
+                String currentStatus = h.getStatus() != null ? h.getStatus().name() : "";
+                if (!currentStatus.equals(lastStatus)) {
+                    OrderStatusHistoryResponse dto = new OrderStatusHistoryResponse();
+                    dto.setId(h.getId());
+                    dto.setStatus(currentStatus);
+                    dto.setChangedAt(h.getCreatedAt());
+                    dto.setCreatedAt(h.getCreatedAt());
+                    cleanHistory.add(dto);
+                    lastStatus = currentStatus;
+                }
+            }
+            res.setHistory(cleanHistory);
+        }
 
         log.info("Order details fetched successfully for orderId: {}", id);
 
@@ -234,15 +263,33 @@ public class AdminService {
                 });
 
         Status newStatus = Status.valueOf(status.toUpperCase());
-        order.setStatus(newStatus);
 
-        orderRepository.save(order);
+        // Skip if order is already in the requested status to prevent duplicate history records
+        if (order.getStatus() == newStatus) {
+            log.info("Order {} is already in status {}. Skipping duplicate status update.", id, newStatus);
+            return;
+        }
+
+        order.setStatus(newStatus);
+        Order savedOrder = orderRepository.save(order);
+
+        // Check latest history entry to prevent duplicate history rows
+        if (savedOrder.getHistory() != null && !savedOrder.getHistory().isEmpty()) {
+            OrderStatusHistory last = savedOrder.getHistory().get(savedOrder.getHistory().size() - 1);
+            if (last.getStatus() == newStatus) {
+                log.info("Order {} already has latest history as {}. Skipping duplicate history entry.", id, newStatus);
+                return;
+            }
+        }
 
         OrderStatusHistory history = new OrderStatusHistory();
         history.setStatus(newStatus);
-        history.setOrder(order);
+        history.setOrder(savedOrder);
 
-        orderStatusHistoryRepository.save(history);
+        OrderStatusHistory savedH = orderStatusHistoryRepository.save(history);
+        if (savedOrder.getHistory() != null) {
+            savedOrder.getHistory().add(savedH);
+        }
 
         log.info("Order status updated successfully for orderId: {}", id);
     }

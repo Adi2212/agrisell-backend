@@ -16,4 +16,10 @@ public class ProductAdminResponse {
 
     private int stock;
 
+    private String offerTitle;
+
+    private Double discountPercentage;
+
+    private Double discountedPrice;
+
 }

@@ -31,6 +31,9 @@ public class OrderService {
     private final UserRepository userRepository;
     private final OrderStatusHistoryRepository historyRepository;
     private final PaymentRepository paymentRepository;
+    private final org.springframework.context.ApplicationContext applicationContext;
+    private final NotificationService notificationService;
+    private final CartService cartService;
 
     private final JwtUtil jwtUtil;
     private final ModelMapper modelMapper;
@@ -115,6 +118,12 @@ public class OrderService {
         paymentRepository.save(payment);
 
         log.info("Payment entry created for orderId: {}", savedOrder.getId());
+        
+        notificationService.createNotification(
+            userId, 
+            "Order Placed", 
+            "Your order #" + savedOrder.getId() + " has been placed successfully but is pending payment."
+        );
 
         return buildOrderResponse(savedOrder);
     }
@@ -149,13 +158,21 @@ public class OrderService {
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
             product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+            productRepository.save(product);
         });
 
-        orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        addHistory(saved, Status.CANCELLED);
 
-        log.info("Order cancelled successfully for orderId: {}", orderId);
+        log.info("Order cancelled successfully with orderId: {}", orderId);
+        
+        notificationService.createNotification(
+            order.getUserId(), 
+            "Order Cancelled", 
+            "Your order #" + order.getId() + " has been cancelled."
+        );
 
-        return "Order Cancelled Successfully";
+        return "Order cancelled successfully";
     }
 
     // Mark payment failed
@@ -167,14 +184,23 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         order.setPaymentStatus(PaymentStatus.FAILED);
+        order.setStatus(Status.CANCELLED);
 
         Payment payment = paymentRepository.findByOrderId(orderId);
         payment.setStatus(PaymentStatus.FAILED);
 
         paymentRepository.save(payment);
+        addHistory(order, Status.CANCELLED);
+
         orderRepository.save(order);
 
         log.info("Payment marked failed successfully for orderId: {}", orderId);
+        
+        notificationService.createNotification(
+            order.getUserId(), 
+            "Payment Failed", 
+            "Payment for order #" + order.getId() + " has failed. Please retry."
+        );
 
         return buildOrderResponse(order);
     }
@@ -184,8 +210,22 @@ public class OrderService {
 
         log.info("Mark payment success for orderId: {}", orderId);
 
+        // Verify with Stripe before marking as success
+        PaymentService paymentService = applicationContext.getBean(PaymentService.class);
+        boolean isVerified = paymentService.verifyPayment(orderId);
+        
+        if (!isVerified) {
+            log.error("Stripe payment verification failed for orderId: {}", orderId);
+            throw new RuntimeException("Payment verification failed! Order not paid.");
+        }
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            log.info("Order {} is already marked as paid. Skipping duplicate processing.", orderId);
+            return buildOrderResponse(order);
+        }
 
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setStatus(Status.CONFIRMED);
@@ -200,28 +240,50 @@ public class OrderService {
 
         log.info("Payment successful and order confirmed for orderId: {}", orderId);
 
+        cartService.clearCart(order.getUserId());
+
+        notificationService.createNotification(
+            order.getUserId(), 
+            "Payment Successful", 
+            "Payment for order #" + order.getId() + " was successful. Your order is now confirmed!"
+        );
+
         return buildOrderResponse(saved);
     }
 
     // Update order status
     public OrderResponse updateStatus(Long orderId, Status status) {
 
-        log.info("Updating status for orderId: {} to {}", orderId, status);
+        log.info("Updating order status for orderId: {} to status: {}", orderId, status);
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with id {}", orderId);
+                    return new RuntimeException("Order not found");
+                });
+
+        if (order.getStatus() == status) {
+            log.info("Order {} is already in status {}. Skipping duplicate status update.", orderId, status);
+            return buildOrderResponse(order);
+        }
 
         order.setStatus(status);
 
-        Order saved = orderRepository.save(order);
-        addHistory(saved, status);
+        Order updated = orderRepository.save(order);
+        addHistory(updated, status);
 
         log.info("Order status updated successfully for orderId: {}", orderId);
+        
+        notificationService.createNotification(
+            order.getUserId(), 
+            "Order Status Updated", 
+            "Your order #" + order.getId() + " is now " + status.name() + "."
+        );
 
-        return buildOrderResponse(saved);
+        return buildOrderResponse(updated);
     }
 
-    // Fetch all orders of logged-in user
+    // Fetch logged in user orders
     public List<OrderResponse> getUserOrders(HttpServletRequest request) {
 
         Long userId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
@@ -234,12 +296,12 @@ public class OrderService {
                 .toList();
     }
 
-    // Fetch Orders for Farmer
+    // Fetch orders containing products of logged-in farmer
     public List<OrderResponse> getOrdersForFarmer(HttpServletRequest request) {
 
         Long farmerId = jwtUtil.extractUserId(jwtUtil.extractToken(request));
 
-        log.info("Fetching farmer orders for farmerId: {}", farmerId);
+        log.info("Fetching orders for farmerId: {}", farmerId);
 
         List<Order> orders = orderRepository.findOrdersByFarmerId(farmerId);
 
@@ -275,11 +337,23 @@ public class OrderService {
 
         log.debug("Adding order history for orderId: {}, status: {}", order.getId(), status);
 
+        // Prevent duplicate consecutive history entries for the same status
+        if (order.getHistory() != null && !order.getHistory().isEmpty()) {
+            OrderStatusHistory last = order.getHistory().get(order.getHistory().size() - 1);
+            if (last.getStatus() == status) {
+                log.debug("Order {} already has latest status history as {}. Skipping duplicate history entry.", order.getId(), status);
+                return;
+            }
+        }
+
         OrderStatusHistory h = new OrderStatusHistory();
         h.setOrder(order);
         h.setStatus(status);
 
-        historyRepository.save(h);
+        OrderStatusHistory savedH = historyRepository.save(h);
+        if (order.getHistory() != null) {
+            order.getHistory().add(savedH);
+        }
     }
 
     // Order stats for graph
@@ -384,6 +458,25 @@ public class OrderService {
 
                 }).toList()
         );
+
+        // Populate order status history with explicit timestamps and filter out consecutive duplicate statuses
+        if (order.getHistory() != null) {
+            List<OrderStatusHistoryResponse> cleanHistory = new ArrayList<>();
+            String lastStatus = null;
+            for (OrderStatusHistory h : order.getHistory()) {
+                String currentStatus = h.getStatus() != null ? h.getStatus().name() : "";
+                if (!currentStatus.equals(lastStatus)) {
+                    OrderStatusHistoryResponse hr = new OrderStatusHistoryResponse();
+                    hr.setId(h.getId());
+                    hr.setStatus(currentStatus);
+                    hr.setChangedAt(h.getCreatedAt());
+                    hr.setCreatedAt(h.getCreatedAt());
+                    cleanHistory.add(hr);
+                    lastStatus = currentStatus;
+                }
+            }
+            r.setHistory(cleanHistory);
+        }
 
         return r;
     }

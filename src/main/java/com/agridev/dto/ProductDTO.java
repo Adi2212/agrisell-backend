@@ -1,6 +1,5 @@
 package com.agridev.dto;
 
-import com.agridev.model.Category;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,5 +16,8 @@ public class ProductDTO {
     private Double price;
     private int stockQuantity;
     private ParentCategoryDTO category;
+    private ParentCategoryDTO parentCategory;
     private String imgUrl;
+    private OfferSummaryDTO offer;
+    private Double discountedPrice;
 }

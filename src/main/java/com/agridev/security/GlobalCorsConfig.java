@@ -21,10 +21,15 @@ public class GlobalCorsConfig {
 
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                String cleanFrontendUrl = (frontendUrl != null && !frontendUrl.isBlank()) 
+                        ? frontendUrl.replaceAll("/+$", "") 
+                        : "http://localhost:5173";
 
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                             "http://localhost:5173/"
+                        .allowedOriginPatterns(
+                                cleanFrontendUrl,
+                                "http://localhost:*",
+                                "http://127.0.0.1:*"
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")

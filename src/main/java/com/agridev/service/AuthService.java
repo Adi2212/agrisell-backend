@@ -2,6 +2,7 @@ package com.agridev.service;
 
 import com.agridev.dto.*;
 import com.agridev.exception.UserNotFound;
+import com.agridev.model.AccStatus;
 import com.agridev.model.PasswordResetToken;
 import com.agridev.model.Role;
 import com.agridev.model.User;
@@ -97,6 +98,58 @@ public class AuthService {
                 mapper.map(user, UserDTO.class)
         );
     }
+
+    // OAUTH LOGIN
+    public LoginResponseDTO oauthLogin(String email, String name, String profileUrl) {
+        log.info("OAuth login attempt for email: {}", email);
+
+        User user = userRepository.findByEmail(email).map(existingUser -> {
+            boolean updated = false;
+            if (name != null && !name.isBlank() && (existingUser.getName() == null || existingUser.getName().isBlank())) {
+                existingUser.setName(name);
+                updated = true;
+            }
+            if (profileUrl != null && !profileUrl.isBlank()) {
+                // Keep profile picture updated if not present or previously from Google/OAuth
+                if (existingUser.getProfileUrl() == null || existingUser.getProfileUrl().isBlank()
+                        || existingUser.getProfileUrl().contains("googleusercontent.com")) {
+                    existingUser.setProfileUrl(profileUrl);
+                    updated = true;
+                }
+            }
+            if (existingUser.getAccStatus() == null) {
+                existingUser.setAccStatus(AccStatus.ACTIVE);
+                updated = true;
+            }
+            return updated ? userRepository.save(existingUser) : existingUser;
+        }).orElseGet(() -> {
+            log.info("User not found, registering new user via OAuth: {}", email);
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setName(name);
+            newUser.setProfileUrl(profileUrl);
+            newUser.setRole(Role.BUYER);
+            newUser.setAccStatus(AccStatus.ACTIVE);
+            // Set a random password for OAuth users since password is required
+            newUser.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+            return userRepository.save(newUser);
+        });
+
+        String token = jwtUtil.generateToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+
+        log.info("OAuth login successful for userId: {}", user.getId());
+
+        return new LoginResponseDTO(
+                token,
+                "OAuth login successful",
+                mapper.map(user, UserDTO.class)
+        );
+    }
+
 
     // FORGOT PASSWORD
     public String forgotPassword(String email) {

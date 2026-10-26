@@ -57,9 +57,17 @@ public class JwtUtil {
         return extractAllClaims(token).getSubject();
     }
 
-    // Method to extract user id from JWT token
+    // Method to extract user id from JWT token safely (supports Integer or Long from JSON)
     public Long extractUserId(String token) {
-        return extractAllClaims(token).get("userId", Long.class);
+        Claims claims = extractAllClaims(token);
+        Object userIdObj = claims.get("userId");
+        if (userIdObj == null) {
+            return null;
+        }
+        if (userIdObj instanceof Number) {
+            return ((Number) userIdObj).longValue();
+        }
+        return Long.parseLong(userIdObj.toString());
     }
 
     // Method to extract role from JWT token

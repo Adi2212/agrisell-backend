@@ -5,9 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
- // Product entity representing items available in the system.
-
+// Product entity representing items available in the system.
 @Entity
 @Table(name = "products")
 @Data
@@ -35,4 +33,8 @@ public class Product extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "offer_id")
+    private Offer offer;
 }

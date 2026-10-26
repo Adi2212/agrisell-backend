@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -59,7 +60,7 @@ public class AdminController {
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("/orders")
     public Page<OrderAdminResponse> getAllOrders(
-            @PageableDefault(size = 5) Pageable pageable) {
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC,size = 10) Pageable pageable) {
 
         return adminService.getOrders(pageable);
     }
